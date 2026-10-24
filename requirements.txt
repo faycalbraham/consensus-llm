@@ -1,0 +1,6 @@
+pydantic-ai-slim[openai]>=2.60
+openai>=3.37
+python-dotenv
+rich
+pytest
+langfuse>=5.0

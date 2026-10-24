@@ -1,0 +1,207 @@
+{
+  "date": "2026-10-24T13:29:47",
+  "question": "Depuis mardi, environ 1 requête sur 20 vers la page de recherche prend 30 s puis échoue en 504. Aucun déploiement depuis 10 jours. Que se passe-t-il ?",
+  "contexte": "== /var/log/nginx/error.log ==\n2026/10/21 10:14:07 [error] 2231#2231: *88412 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 81.250.12.4, server: shop.example.com, request: \"GET /search?q=chaussures HTTP/1.1\", upstream: \"http://10.0.2.14:8000/search\"\n2026/10/21 10:16:52 [error] 2231#2231: *88977 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 90.12.77.31, server: shop.example.com, request: \"GET /search?q=veste HTTP/1.1\", upstream: \"http://10.0.2.14:8000/search\"\n\n== application (search-api) ==\n2026-10-21 10:13:37,512 INFO  elasticsearch: GET http://es-cluster:9200/products/_search [status:200 request:0.042s]\n2026-10-21 10:13:37,604 WARNING elasticsearch: GET http://es-cluster:9200/products/_search [status:N/A request:30.001s] ConnectionTimeout caused by - ReadTimeoutError(HTTPConnectionPool(host='es-cluster', port=9200): Read timed out. (read timeout=30))\n2026-10-21 10:13:38,019 INFO  elasticsearch: GET http://es-cluster:9200/products/_search [status:200 request:0.038s]\n\n== es-node-2 ==\n[2026-10-21T10:13:38,115][WARN ][o.e.m.j.JvmGcMonitorService] [es-node-2] [gc][old][12844][97] duration [28.7s], collections [1]/[29.1s], total [28.7s]/[41.2m], memory [3.9gb]->[3.8gb]/[4gb]\n[2026-10-21T10:13:38,116][WARN ][o.e.m.j.JvmGcMonitorService] [es-node-2] [gc][12844] overhead, spent [28.7s] collecting in the last [29.1s]\n[2026-10-21T10:13:40,002][INFO ][o.e.i.b.HierarchyCircuitBreakerService] [es-node-2] attempting to trigger G1GC due to high heap usage [4089446400]\n\n== Notes de l'équipe ==\nCluster Elasticsearch : 3 nœuds, 4 Go de heap chacun.\nL'index products est passé de 2 à 9 millions de documents depuis lundi (import du catalogue fournisseur).\n",
+  "reponses": [
+    {
+      "modele": "openai/gpt-5.6-luna",
+      "ok": true,
+      "erreur": null,
+      "duree_s": 7.92,
+      "tokens_entree": 1099,
+      "tokens_sortie": 735,
+      "reponse": {
+        "reponse": "La cause la plus probable est une saturation mémoire d’`es-node-2` provoquée par le triplement de l’index `products` (2 à 9 millions de documents). Le nœud passe 28,7 s en ancienne génération GC, ce qui retarde la réponse Elasticsearch au-delà du timeout de 30 s ; l’API puis Nginx renvoient alors des 504. L’incident est intermittent car toutes les requêtes ne sollicitent probablement pas ce nœud ou ce niveau de pression mémoire.",
+        "categorie_cause": "ressources_systeme",
+        "gravite": "elevee",
+        "raisonnement": "1. Nginx signale un timeout de lecture de l’en-tête auprès de `search-api`, et non une erreur applicative immédiate. 2. `search-api` montre une requête Elasticsearch ayant expiré exactement après 30,001 s, tandis que d’autres répondent en environ 40 ms. 3. Sur `es-node-2`, une pause old-GC de 28,7 s et une heap presque pleine à 3,9/4 Go montrent une forte pression mémoire. 4. L’index est passé de 2 à 9 millions de documents depuis lundi, ce qui fournit le changement temporel cohérent malgré l’absence de déploiement. 5. La requête Elasticsearch lente entraîne le timeout applicatif puis le 504 côté proxy.",
+        "points_cles": [
+          "Une requête Elasticsearch expire après 30,001 s, alors que les requêtes normales répondent en environ 40 ms.",
+          "`es-node-2` subit une pause old-GC de 28,7 s avec une heap de 3,9 Go sur 4 Go.",
+          "L’index `products` est passé de 2 à 9 millions de documents depuis lundi.",
+          "Nginx observe un timeout de lecture de l’upstream `/search`, cohérent avec le délai Elasticsearch.",
+          "Le taux d’échec d’environ 1/20 est compatible avec un problème affectant certaines requêtes ou certains parcours de nœuds."
+        ],
+        "actions_recommandees": [
+          "Vérifier immédiatement l’état du cluster, la répartition des shards, la heap et les GC par nœud, ainsi que les requêtes lentes ; confirmer qu’`es-node-2` porte une charge ou des shards disproportionnés.",
+          "Réduire la pression sur Elasticsearch : suspendre ou ralentir l’import catalogue, limiter temporairement le trafic/requêtes de recherche coûteuses et vérifier les paramètres de pagination, tri et agrégations.",
+          "Rééquilibrer les shards et augmenter les ressources Elasticsearch (heap correctement dimensionnée et/ou ajout de nœuds) avant de reprendre l’import complet.",
+          "Examiner et optimiser la requête `/search` et ses mappings après stabilisation ; ne pas se limiter à augmenter le timeout de 30 s, qui masquerait la saturation.",
+          "Surveiller le taux de 504, les latences Elasticsearch, l’occupation heap et les pauses GC pendant et après chaque action."
+        ],
+        "hypotheses": [
+          "Les requêtes lentes sont dirigées vers `es-node-2` ou nécessitent des shards qu’il héberge.",
+          "La hausse de taille de l’index a augmenté la mémoire nécessaire aux recherches, aux segments ou aux caches.",
+          "L’import est toujours actif ou a laissé une charge/pression mémoire élevée.",
+          "Aucun autre incident réseau ou défaut matériel n’est présent, faute d’indices dans les éléments fournis."
+        ],
+        "confiance": 0.97
+      }
+    },
+    {
+      "modele": "anthropic/claude-haiku-5.5",
+      "ok": true,
+      "erreur": null,
+      "duree_s": 8.7,
+      "tokens_entree": 2291,
+      "tokens_sortie": 1576,
+      "reponse": {
+        "reponse": "Les timeouts 504 proviennent d'une saturation mémoire (heap) du nœud Elasticsearch es-node-2 : pauses GC old-gen de ~28,7 s qui bloquent les requêtes de recherche vers l'index products. La cause déclenchante probable est l'import du catalogue fournisseur (2 → 9 millions de documents depuis lundi), qui a fait grossir l'index et la pression mémoire sur des heaps de 4 Go.",
+        "categorie_cause": "base_de_donnees",
+        "gravite": "elevee",
+        "raisonnement": "1) Nginx renvoie 504 car l'upstream search-api (10.0.2.14:8000) ne répond pas dans le délai, après 30 s. 2) search-api logge des ReadTimeoutError de 30 s sur es-cluster:9200, alors que les requêtes suivantes passent en ~40 ms : le problème est intermittent et lié à Elasticsearch, pas à l'application. 3) es-node-2 montre une pause GC old-gen de 28,7 s avec heap à 3,8 Go sur 4 Go, et une tentative de G1GC pour forte utilisation du heap : le nœud est bloqué par la garbage collection. 4) Le volume de l'index a plus que quadruplé depuis lundi, ce qui explique la pression mémoire croissante. 5) Environ 1 requête sur 20 correspond à celles qui tombent sur le nœud en pause ; l'absence de déploiement écarte une régression applicative.",
+        "points_cles": [
+          "es-node-2 : GC old-gen de 28,7 s, heap 3,8 Go / 4 Go, cumul 41,2 min de GC.",
+          "search-api : ReadTimeoutError à 30 s sur es-cluster:9200, requêtes suivantes OK en ~40 ms.",
+          "Nginx : upstream timed out sur /search, donc 504 côté client.",
+          "Index products passé de 2 à 9 millions de documents depuis lundi (import fournisseur).",
+          "Aucun déploiement depuis 10 jours : cause probablement côté données/volume."
+        ],
+        "actions_recommandees": [
+          "Vérifier l'état du cluster (GET _cluster/health, _nodes/stats/jvm, _cat/nodes) et confirmer que es-node-2 est le nœud en cause et que les pauses GC sont récurrentes.",
+          "Réduire la pression mémoire immédiatement : vérifier le heap réellement alloué (ES recommande ≤ 50 % de la RAM et ≤ 31 Go ; ici 4 Go) et augmenter le heap si la machine le permet, ou ajouter des nœuds/de la RAM.",
+          "Identifier ce qui consomme la heap : _nodes/stats/indices (fielddata, caches de requêtes, segments), requêtes lourdes (agrégations, tri, wildcard) sur le catalogue fraîchement importé.",
+          "Réduire la charge de l'import fournisseur (throttling, déplacement hors des heures de pointe) et envisager un force merge ou une réduction du nombre de shards/replicas si le sharding a été conservé à l'identique.",
+          "Côté applicatif, mettre un timeout de lecture Elasticsearch plus court avec retry sur un autre nœud, et adapter le timeout Nginx/search-api en conséquence pour échouer plus vite et mieux."
+        ],
+        "hypotheses": [
+          "L'import a probablement créé beaucoup de segments/fielddata ou des mappings coûteux, non confirmés par les éléments fournis.",
+          "Le heap de 4 Go peut être sous-dimensionné pour 9 millions de documents, mais ce point n'est pas vérifié.",
+          "Une requête particulière (agrégation ou tri lourd) pourrait déclencher les GC ; les logs ne donnent pas la requête ES exacte.",
+          "Un problème réseau entre search-api et es-cluster est peu probable car le nœud montre une GC pure, mais n'a pas été exclu formellement.",
+          "Les notes ne précisent pas le nombre de shards ni de replicas, ni le ratio de requêtes lentes sur es-node-2 vs autres nœuds."
+        ],
+        "confiance": 0.75
+      }
+    },
+    {
+      "modele": "google/gemini-3.8-flash",
+      "ok": true,
+      "erreur": null,
+      "duree_s": 14.23,
+      "tokens_entree": 1251,
+      "tokens_sortie": 1515,
+      "reponse": {
+        "reponse": "L'explosion du volume de données dans l'index products (multiplié par 4,5) sature la mémoire JVM (heap) du nœud Elasticsearch es-node-2. Le nœud subit de longues pauses de Garbage Collection (~29 secondes), provoquant des timeouts en cascade sur l'API de recherche puis une erreur 504 côté Nginx.",
+        "categorie_cause": "ressources_systeme",
+        "gravite": "elevee",
+        "raisonnement": "L'import massif de données (passage de 2 à 9 millions de documents) a fortement augmenté l'empreinte mémoire du cluster Elasticsearch. Avec seulement 4 Go de heap par nœud, le nœud es-node-2 subit une saturation de sa mémoire JVM, déclenchant des pauses GC majeures de 28,7 secondes. Pendant ces pauses Stop-The-World, le nœud ne répond plus aux requêtes. L'API applicative atteint son timeout de lecture fixé à 30 secondes, ce qui provoque en cascade l'expiration du délai amont (upstream timed out) côté Nginx et le renvoi d'une erreur HTTP 504 au client.",
+        "points_cles": [
+          "L'application search-api subit un timeout de 30 s lors des requêtes HTTP vers le cluster Elasticsearch.",
+          "Le reverse-proxy Nginx renvoie une erreur 504 après expiration du délai de réponse de search-api (30 s).",
+          "Le nœud es-node-2 subit des pauses Garbage Collection majeures de près de 29 secondes dues à une heap presque pleine (3.9 Go / 4 Go).",
+          "Le volume de documents de l'index products a plus que quadruplé depuis lundi (de 2 à 9 millions de documents)."
+        ],
+        "actions_recommandees": [
+          "Augmenter la taille de la JVM heap d'Elasticsearch (ex. passer de 4 Go à 8 Go ou plus selon la RAM physique disponible sur les serveurs).",
+          "Ajouter des nœuds supplémentaires au cluster Elasticsearch pour mieux répartir les shards et la charge mémoire consécutifs à la hausse de volume.",
+          "Optimiser l'indexation et les mappings de l'index products (vérifier le nombre de shards, replicas, et désactiver les champs doc_values/fielddata non nécessaires).",
+          "Vérifier l'état de santé du cluster (_cluster/health, _nodes/stats/jvm) et ajuster temporairement le timeout applicatif si nécessaire pendant la remédiation."
+        ],
+        "hypotheses": [
+          "Les requêtes qui échouent (environ 5 %) sont celles routées vers le nœud es-node-2 pendant qu'il subit une pause GC Stop-The-World.",
+          "Les autres nœuds du cluster risquent de rencontrer la même saturation mémoire à brève échéance sous charge similaire."
+        ],
+        "confiance": 0.95
+      }
+    }
+  ],
+  "analyse": {
+    "modeles_valides": [
+      "openai/gpt-5.6-luna",
+      "anthropic/claude-haiku-5.5",
+      "google/gemini-3.8-flash"
+    ],
+    "modeles_en_echec": {},
+    "repartition_categories": {
+      "ressources_systeme": [
+        "openai/gpt-5.6-luna",
+        "google/gemini-3.8-flash"
+      ],
+      "base_de_donnees": [
+        "anthropic/claude-haiku-5.5"
+      ]
+    },
+    "categorie_majoritaire": "ressources_systeme",
+    "accord_categorie": 0.5,
+    "gravites": {
+      "openai/gpt-5.6-luna": "elevee",
+      "anthropic/claude-haiku-5.5": "elevee",
+      "google/gemini-3.8-flash": "elevee"
+    },
+    "accord_gravite": 1.0,
+    "accord_contenu": 0.325,
+    "score_consensus": 0.547,
+    "niveau": "modérée",
+    "confiance_declaree_moyenne": 0.89,
+    "convergences": [
+      {
+        "textes": {
+          "openai/gpt-5.6-luna": "`es-node-2` subit une pause old-GC de 28,7 s avec une heap de 3,9 Go sur 4 Go.",
+          "anthropic/claude-haiku-5.5": "es-node-2 : GC old-gen de 28,7 s, heap 3,8 Go / 4 Go, cumul 41,2 min de GC."
+        }
+      },
+      {
+        "textes": {
+          "openai/gpt-5.6-luna": "L’index `products` est passé de 2 à 9 millions de documents depuis lundi.",
+          "anthropic/claude-haiku-5.5": "Index products passé de 2 à 9 millions de documents depuis lundi (import fournisseur).",
+          "google/gemini-3.8-flash": "Le volume de documents de l'index products a plus que quadruplé depuis lundi (de 2 à 9 millions de documents)."
+        }
+      },
+      {
+        "textes": {
+          "anthropic/claude-haiku-5.5": "search-api : ReadTimeoutError à 30 s sur es-cluster:9200, requêtes suivantes OK en ~40 ms.",
+          "google/gemini-3.8-flash": "L'application search-api subit un timeout de 30 s lors des requêtes HTTP vers le cluster Elasticsearch."
+        }
+      }
+    ],
+    "actions_convergentes": [
+      {
+        "textes": {
+          "anthropic/claude-haiku-5.5": "Vérifier l'état du cluster (GET _cluster/health, _nodes/stats/jvm, _cat/nodes) et confirmer que es-node-2 est le nœud en cause et que les pauses GC sont récurrentes.",
+          "google/gemini-3.8-flash": "Vérifier l'état de santé du cluster (_cluster/health, _nodes/stats/jvm) et ajuster temporairement le timeout applicatif si nécessaire pendant la remédiation."
+        }
+      }
+    ],
+    "divergences": [
+      [
+        "openai/gpt-5.6-luna",
+        "Une requête Elasticsearch expire après 30,001 s, alors que les requêtes normales répondent en environ 40 ms."
+      ],
+      [
+        "openai/gpt-5.6-luna",
+        "Nginx observe un timeout de lecture de l’upstream `/search`, cohérent avec le délai Elasticsearch."
+      ],
+      [
+        "openai/gpt-5.6-luna",
+        "Le taux d’échec d’environ 1/20 est compatible avec un problème affectant certaines requêtes ou certains parcours de nœuds."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "Nginx : upstream timed out sur /search, donc 504 côté client."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "Aucun déploiement depuis 10 jours : cause probablement côté données/volume."
+      ],
+      [
+        "google/gemini-3.8-flash",
+        "Le reverse-proxy Nginx renvoie une erreur 504 après expiration du délai de réponse de search-api (30 s)."
+      ],
+      [
+        "google/gemini-3.8-flash",
+        "Le nœud es-node-2 subit des pauses Garbage Collection majeures de près de 29 secondes dues à une heap presque pleine (3.9 Go / 4 Go)."
+      ]
+    ],
+    "contradictions": [
+      "anthropic/claude-haiku-5.5 attribue la cause à « base_de_donnees » alors que openai/gpt-5.6-luna, google/gemini-3.8-flash retiennent « ressources_systeme »."
+    ],
+    "diagnostic_retenu": [
+      "google/gemini-3.8-flash",
+      "L'explosion du volume de données dans l'index products (multiplié par 4,5) sature la mémoire JVM (heap) du nœud Elasticsearch es-node-2. Le nœud subit de longues pauses de Garbage Collection (~29 secondes), provoquant des timeouts en cascade sur l'API de recherche puis une erreur 504 côté Nginx."
+    ],
+    "alertes": [
+      "Les modèles se disent confiants (89%) bien au-delà de leur accord réel (55%) : ne pas se fier à la confiance auto-déclarée."
+    ]
+  }
+}

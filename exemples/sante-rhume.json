@@ -1,0 +1,231 @@
+{
+  "date": "2026-10-24T13:56:03",
+  "domaine": "sante",
+  "question": "J'ai un fort rhume. Comment le soulager avec des aliments ou autres moyens, sans médicaments ?",
+  "contexte": "Homme de 65 ans. Glycémie à jeun : 1,15 g/L.\nNe dispose pas de fruits et légumes exotiques.",
+  "reponses": [
+    {
+      "modele": "openai/gpt-5.6-luna",
+      "ok": true,
+      "erreur": null,
+      "duree_s": 7.91,
+      "tokens_entree": 499,
+      "tokens_sortie": 699,
+      "reponse": {
+        "reponse": "Pour soulager un fort rhume, reposez-vous, buvez régulièrement de l’eau ou des boissons chaudes non sucrées, et rincez le nez au sérum physiologique ou avec une solution saline préparée avec de l’eau stérile ou préalablement bouillie puis refroidie. Une cuillère de miel dans une boisson tiède peut calmer la gorge ou la toux, mais restez modéré en raison de votre glycémie; consultez si les symptômes s’aggravent ou persistent.",
+        "consulter_medecin": "si_persistance",
+        "gravite": "faible",
+        "raisonnement": "Un rhume est généralement viral et s’améliore spontanément en quelques jours à une dizaine de jours. À 65 ans, une surveillance plus attentive est prudente, notamment en cas de fièvre ou de gêne respiratoire. Une glycémie à jeun de 1,15 g/L est légèrement élevée selon les seuils habituels, sans justifier de boissons sucrées; elle mérite d’être contrôlée avec un professionnel si cela n’a pas déjà été fait.",
+        "recommandations": [
+          "Buvez de l’eau, des tisanes non sucrées ou un bouillon peu salé, par petites quantités régulières.",
+          "Rincez le nez avec du sérum physiologique; à défaut, utilisez une solution faite avec de l’eau bouillie puis refroidie, jamais l’eau du robinet directement dans le nez.",
+          "Reposez-vous et aérez la pièce; dormez avec la tête légèrement surélevée si le nez est bouché.",
+          "Pour la gorge ou la toux, prenez éventuellement une petite cuillère de miel, en évitant d’en multiplier les prises à cause de la glycémie.",
+          "Mangez simplement selon l’appétit: soupe de légumes ordinaires, fruits disponibles, yaourt nature ou repas habituels sans forcer."
+        ],
+        "a_eviter": [
+          "Évitez les boissons très sucrées, les excès de miel et l’alcool, notamment en raison de la glycémie.",
+          "N’utilisez pas d’eau très chaude, d’inhalations brûlantes ou d’huiles essentielles, qui peuvent provoquer des brûlures ou irriter les voies respiratoires.",
+          "Évitez les antibiotiques ou autres médicaments sans avis médical: ils ne traitent pas un rhume viral."
+        ],
+        "signaux_alerte": [
+          "Consultez rapidement en cas de difficulté à respirer, douleur thoracique, confusion, somnolence inhabituelle ou lèvres bleutées.",
+          "Demandez un avis médical rapidement en cas de forte fièvre persistante, d’aggravation nette après une amélioration, ou de déshydratation.",
+          "Consultez si les symptômes durent plus de 10 jours, si une douleur importante du visage ou de l’oreille apparaît, ou si vous avez une maladie chronique importante."
+        ],
+        "hypotheses": [
+          "Je suppose qu’il s’agit d’un rhume sans difficulté respiratoire, douleur thoracique ni fièvre élevée.",
+          "Je ne connais pas la durée des symptômes, les maladies chroniques éventuelles, ni les traitements habituels.",
+          "Je suppose que la glycémie à jeun a été mesurée dans des conditions habituelles et qu’aucun diagnostic de diabète n’a été posé."
+        ],
+        "confiance": 0.9
+      }
+    },
+    {
+      "modele": "anthropic/claude-haiku-5.5",
+      "ok": true,
+      "erreur": null,
+      "duree_s": 6.93,
+      "tokens_entree": 1519,
+      "tokens_sortie": 1246,
+      "reponse": {
+        "reponse": "Un gros rhume se soulage bien avec de l'hydratation, du repos et des boissons chaudes (bouillon, tisane au gingembre ou au thym, miel si la glycémie le permet). Un rhume simple guérit en général en 7 à 10 jours ; consultez si les signaux d'alerte ci-dessous apparaissent.",
+        "consulter_medecin": "si_persistance",
+        "gravite": "faible",
+        "raisonnement": "Chez un homme de 65 ans, un rhume banal reste en général bénin, mais l'âge augmente le risque que l'infection touche les bronches ou les poumons, et une fièvre ou une gêne respiratoire doit être prise au sérieux. La glycémie à jeun de 1,15 g/L (soit 115 mg/dL) est dans la norme, ce qui permet d'utiliser un peu de miel ou de jus de fruit sans inquiétude particulière, mais en quantité modérée. Les conseils visent l'hydratation, le repos et le confort des voies respiratoires, sans médicament. Les fruits et légumes exotiques n'étant pas disponibles, on se tourne vers des produits courants comme les agrumes, le gingembre, l'ail et les oignons.",
+        "recommandations": [
+          "Boire beaucoup d'eau, de tisanes ou de bouillon chaud tout au long de la journée.",
+          "Préparer une tisane au gingembre frais râpé avec du citron et un peu de miel.",
+          "Manger une soupe chaude à l'ail, à l'oignon ou aux légumes pour aider à dégager le nez.",
+          "Se laver le nez au sérum physiologique ou à l'eau salée tiède pour faciliter la respiration.",
+          "Dormir la tête légèrement surélevée et se reposer davantage.",
+          "Utiliser un mouchoir jetable et se laver souvent les mains."
+        ],
+        "a_eviter": [
+          "Alcool, qui déshydrate et perturbe le repos.",
+          "Tabac et fumée, qui irritent les voies respiratoires.",
+          "Excès de sucre ou de miel, même si la glycémie est normale.",
+          "Boissons très froides ou très sucrées.",
+          "Efforts physiques intenses tant que la fièvre ou la fatigue persistent."
+        ],
+        "signaux_alerte": [
+          "Fièvre supérieure à 38,5 °C ou persistant plus de 3 jours.",
+          "Essoufflement, douleur thoracique ou respiration sifflante.",
+          "Confusion, somnolence inhabituelle ou malaise.",
+          "Symptômes qui s'aggravent après une amélioration initiale.",
+          "Rhume qui dure plus de 10 jours sans amélioration."
+        ],
+        "hypotheses": [
+          "Il s'agit d'un rhume viral sans antécédent respiratoire grave connu.",
+          "Aucune maladie chronique respiratoire, cardiaque ou immunitaire n'est signalée.",
+          "Aucun traitement médicamenteux en cours n'est mentionné (notamment anticoagulants ou médicaments pouvant interagir avec le gingembre ou l'ail en grande quantité).",
+          "La glycémie indiquée est une valeur à jeun unique et normale."
+        ],
+        "confiance": 0.8
+      }
+    },
+    {
+      "modele": "google/gemini-3.8-flash",
+      "ok": true,
+      "erreur": null,
+      "duree_s": 11.01,
+      "tokens_entree": 494,
+      "tokens_sortie": 1561,
+      "reponse": {
+        "reponse": "Pour soulager votre rhume, misez sur les lavages de nez réguliers au sérum physiologique, la vapeur d'eau et des infusions de thym non sucrées. En raison de votre glycémie à jeun à 1,15 g/L, évitez d'adoucir vos boissons avec du miel ou du sucre.",
+        "consulter_medecin": "si_persistance",
+        "gravite": "faible",
+        "raisonnement": "Le rhume est une affection virale bénigne et spontanément résolutive. À 65 ans et avec une glycémie à jeun de 1,15 g/L (zone de prédiabète), il convient d'éviter les remèdes traditionnels trop riches en sucres rapides comme les grandes quantités de miel ou les sirops. Le soulagement passe par le lavage des fosses nasales, l'inhalation de vapeur et une bonne hydratation à base de plantes locales (thym, oignon, ail) et de bouillons sans sucres ajoutés.",
+        "recommandations": [
+          "Nettoyez-vous le nez plusieurs fois par jour avec du sérum physiologique ou un spray d'eau de mer tiède.",
+          "Buvez des infusions de thym bien chaudes avec un filet de jus de citron, sans ajouter de miel ni de sucre.",
+          "Consommez des bouillons chauds de légumes locaux (poireaux, carottes, oignons, ail) pour l'hydratation et le réconfort.",
+          "Faites des inhalations de vapeur d'eau chaude au-dessus d'un bol pour fluidifier les sécrétions.",
+          "Surélevez légèrement votre oreiller la nuit pour faciliter la respiration et favoriser le repos."
+        ],
+        "a_eviter": [
+          "Consommer du miel en grande quantité ou sucrer vos tisanes, en raison de votre glycémie à jeun légèrement élevée (1,15 g/L).",
+          "Boire des jus de fruits industriels ou boissons sucrées pour vous hydrater.",
+          "L'air trop sec ou surchauffé dans la chambre, qui irrite davantage les muqueuses."
+        ],
+        "signaux_alerte": [
+          "Difficulté à respirer, essoufflement ou sensation d'oppression thoracique.",
+          "Fièvre élevée (supérieure à 38,5 °C) ou persistant plus de 48 à 72 heures.",
+          "Maux de tête intenses accompagnés de douleurs importantes au niveau du visage ou des sinus.",
+          "Absence d'amélioration après 7 à 10 jours ou aggravation subite après une amélioration."
+        ],
+        "hypotheses": [
+          "Il s'agit d'un rhume viral banal sans surinfection bactérienne.",
+          "Vous n'avez pas de pathologie respiratoire chronique (asthme, BPCO).",
+          "Vous n'avez pas de fièvre élevée ni de détresse respiratoire actuelle."
+        ],
+        "confiance": 0.9
+      }
+    }
+  ],
+  "analyse": {
+    "modeles_valides": [
+      "openai/gpt-5.6-luna",
+      "anthropic/claude-haiku-5.5",
+      "google/gemini-3.8-flash"
+    ],
+    "modeles_en_echec": {},
+    "repartition_categories": {
+      "si_persistance": [
+        "openai/gpt-5.6-luna",
+        "anthropic/claude-haiku-5.5",
+        "google/gemini-3.8-flash"
+      ]
+    },
+    "categorie_majoritaire": "si_persistance",
+    "accord_categorie": 1.0,
+    "gravites": {
+      "openai/gpt-5.6-luna": "faible",
+      "anthropic/claude-haiku-5.5": "faible",
+      "google/gemini-3.8-flash": "faible"
+    },
+    "accord_gravite": 1.0,
+    "accord_contenu": 0.211,
+    "score_consensus": 0.763,
+    "niveau": "élevée",
+    "confiance_declaree_moyenne": 0.867,
+    "convergences": [
+      {
+        "textes": {
+          "openai/gpt-5.6-luna": "Reposez-vous et aérez la pièce; dormez avec la tête légèrement surélevée si le nez est bouché.",
+          "anthropic/claude-haiku-5.5": "Dormir la tête légèrement surélevée et se reposer davantage."
+        }
+      },
+      {
+        "textes": {
+          "anthropic/claude-haiku-5.5": "Se laver le nez au sérum physiologique ou à l'eau salée tiède pour faciliter la respiration.",
+          "google/gemini-3.8-flash": "Nettoyez-vous le nez plusieurs fois par jour avec du sérum physiologique ou un spray d'eau de mer tiède."
+        }
+      }
+    ],
+    "actions_convergentes": [
+      {
+        "textes": {
+          "openai/gpt-5.6-luna": "Évitez les boissons très sucrées, les excès de miel et l’alcool, notamment en raison de la glycémie.",
+          "anthropic/claude-haiku-5.5": "Excès de sucre ou de miel, même si la glycémie est normale."
+        }
+      }
+    ],
+    "divergences": [
+      [
+        "openai/gpt-5.6-luna",
+        "Buvez de l’eau, des tisanes non sucrées ou un bouillon peu salé, par petites quantités régulières."
+      ],
+      [
+        "openai/gpt-5.6-luna",
+        "Rincez le nez avec du sérum physiologique; à défaut, utilisez une solution faite avec de l’eau bouillie puis refroidie, jamais l’eau du robinet directement dans le nez."
+      ],
+      [
+        "openai/gpt-5.6-luna",
+        "Pour la gorge ou la toux, prenez éventuellement une petite cuillère de miel, en évitant d’en multiplier les prises à cause de la glycémie."
+      ],
+      [
+        "openai/gpt-5.6-luna",
+        "Mangez simplement selon l’appétit: soupe de légumes ordinaires, fruits disponibles, yaourt nature ou repas habituels sans forcer."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "Boire beaucoup d'eau, de tisanes ou de bouillon chaud tout au long de la journée."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "Préparer une tisane au gingembre frais râpé avec du citron et un peu de miel."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "Manger une soupe chaude à l'ail, à l'oignon ou aux légumes pour aider à dégager le nez."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "Utiliser un mouchoir jetable et se laver souvent les mains."
+      ],
+      [
+        "google/gemini-3.8-flash",
+        "Buvez des infusions de thym bien chaudes avec un filet de jus de citron, sans ajouter de miel ni de sucre."
+      ],
+      [
+        "google/gemini-3.8-flash",
+        "Consommez des bouillons chauds de légumes locaux (poireaux, carottes, oignons, ail) pour l'hydratation et le réconfort."
+      ],
+      [
+        "google/gemini-3.8-flash",
+        "Faites des inhalations de vapeur d'eau chaude au-dessus d'un bol pour fluidifier les sécrétions."
+      ],
+      [
+        "google/gemini-3.8-flash",
+        "Surélevez légèrement votre oreiller la nuit pour faciliter la respiration et favoriser le repos."
+      ]
+    ],
+    "contradictions": [],
+    "diagnostic_retenu": [
+      "openai/gpt-5.6-luna",
+      "Pour soulager un fort rhume, reposez-vous, buvez régulièrement de l’eau ou des boissons chaudes non sucrées, et rincez le nez au sérum physiologique ou avec une solution saline préparée avec de l’eau stérile ou préalablement bouillie puis refroidie. Une cuillère de miel dans une boisson tiède peut calmer la gorge ou la toux, mais restez modéré en raison de votre glycémie; consultez si les symptômes s’aggravent ou persistent."
+    ],
+    "alertes": []
+  }
+}

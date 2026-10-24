@@ -1,0 +1,58 @@
+{
+  "demo/modele-a": {
+    "reponse": "Les workers Gunicorn sont tués par manque de mémoire (OOM) à cause de l'export PDF synchrone ajouté au déploiement ; Nginx reçoit alors des connexions fermées ou refusées, d'où les 502.",
+    "categorie_cause": "ressources_systeme",
+    "gravite": "elevee",
+    "raisonnement": "Le dmesg montre un process gunicorn tué par l'OOM killer. Les messages Nginx 'prematurely closed' et 'connection refused' correspondent à un worker qui meurt puis redémarre. Le problème apparaît avec le déploiement de l'export PDF et s'aggrave en heure de pointe, ce qui pointe vers une consommation mémoire par requête.",
+    "points_cles": [
+      "Le dmesg indique que l'OOM killer tue des workers gunicorn",
+      "Les erreurs Nginx montrent un upstream qui ferme ou refuse la connexion",
+      "L'export PDF synchrone ajouté au déploiement consomme beaucoup de mémoire",
+      "Les conteneurs de 512 Mo sont trop petits pour 4 workers"
+    ],
+    "actions_recommandees": [
+      "Augmenter la mémoire des conteneurs ou réduire le nombre de workers",
+      "Déplacer la génération PDF dans une tâche asynchrone (file de messages)",
+      "Surveiller la mémoire par worker avec une alerte"
+    ],
+    "hypotheses": ["La génération PDF charge le document entier en mémoire"],
+    "confiance": 0.85
+  },
+  "demo/modele-b": {
+    "reponse": "La génération PDF synchrone sature la mémoire des conteneurs de 512 Mo : le noyau tue les workers gunicorn (OOM) et Nginx renvoie des 502 pendant leur redémarrage.",
+    "categorie_cause": "ressources_systeme",
+    "gravite": "elevee",
+    "raisonnement": "Corrélation temporelle avec le déploiement, trace OOM dans dmesg, erreurs Nginx typiques d'un backend qui disparaît. L'effet heure de pointe s'explique par plusieurs exports simultanés.",
+    "points_cles": [
+      "OOM killer : workers gunicorn tués d'après dmesg",
+      "Export PDF synchrone introduit par le dernier déploiement",
+      "Mémoire de 512 Mo insuffisante pour 4 workers",
+      "Plusieurs exports simultanés aux heures de pointe"
+    ],
+    "actions_recommandees": [
+      "Rendre l'export PDF asynchrone via une tâche en file de messages",
+      "Augmenter la mémoire des conteneurs à 1 Go",
+      "Activer max_requests sur gunicorn pour recycler les workers"
+    ],
+    "hypotheses": ["Fuite mémoire possible dans la bibliothèque PDF"],
+    "confiance": 0.8
+  },
+  "demo/modele-c": {
+    "reponse": "Le timeout Gunicorn de 30 s est trop court pour l'export PDF : les workers sync sont bloqués puis tués, et Nginx renvoie des 502.",
+    "categorie_cause": "configuration",
+    "gravite": "moyenne",
+    "raisonnement": "Avec des workers sync, une requête longue bloque le worker. Au-delà de 30 s, le master le tue, ce qui ferme la connexion côté Nginx. L'OOM pourrait être un effet secondaire.",
+    "points_cles": [
+      "Workers sync bloqués par les requêtes longues d'export PDF",
+      "Timeout gunicorn de 30 s dépassé par la génération",
+      "Les erreurs Nginx montrent un upstream qui ferme la connexion"
+    ],
+    "actions_recommandees": [
+      "Passer gunicorn en workers gthread ou gevent",
+      "Augmenter le timeout gunicorn",
+      "Rendre l'export PDF asynchrone"
+    ],
+    "hypotheses": ["L'OOM est une conséquence et non la cause", "Le trafic de pointe multiplie les exports"],
+    "confiance": 0.9
+  }
+}

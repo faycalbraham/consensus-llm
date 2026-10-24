@@ -1,0 +1,328 @@
+{
+  "date": "2026-10-24T19:30:10",
+  "source": null,
+  "langfuse_trace_id": "9923e7225988f3d0c6d87a3937b82bcc",
+  "domaine": "technique",
+  "question": "Chaque lundi entre 8 h et 10 h, les temps de réponse de l'API passent de 120 ms à 4 s. Le reste de la semaine tout va bien. Que se passe-t-il ?",
+  "contexte": "API REST de l'application de commandes (Python/FastAPI), qui lit et écrit dans PostgreSQL.\nPostgreSQL 15, une instance de 4 vCPU.\npg_stat_activity : nombreuses sessions 'idle in transaction', ~95 connexions sur max_connections=100.\nUn job de rapport hebdomadaire est planifié le lundi à 7 h 45.\nPas de pgbouncer. CPU à 90 % pendant la plage concernée.",
+  "reponses": [
+    {
+      "modele": "openai/gpt-5.6-luna",
+      "ok": true,
+      "erreur": null,
+      "duree_s": 7.01,
+      "tokens_entree": 583,
+      "tokens_sortie": 613,
+      "reponse": {
+        "reponse": "La cause la plus probable est le job de rapport hebdomadaire, qui consomme fortement PostgreSQL le lundi matin et laisse de nombreuses transactions ouvertes. Ces sessions occupent presque tout le pool de connexions et la CPU atteint 90 %, ce qui provoque à la fois de l’attente côté API et une forte dégradation des requêtes.",
+        "categorie_cause": "base_de_donnees",
+        "gravite": "elevee",
+        "raisonnement": "1. La corrélation temporelle entre le ralentissement et le job lancé à 7 h 45 est forte. 2. Environ 95 connexions sur 100 sont « idle in transaction », ce qui indique des transactions laissées ouvertes et réduit la capacité disponible pour l’API. 3. L’absence de PgBouncer empêche de lisser ou mutualiser les connexions applicatives. 4. La CPU PostgreSQL à 90 % pendant la même plage confirme une saturation probable liée au rapport et/ou aux requêtes concurrentes. 5. Le caractère hebdomadaire et limité au lundi matin écarte une dégradation générale permanente de l’application.",
+        "points_cles": [
+          "Le ralentissement survient uniquement pendant la fenêtre suivant le lancement du rapport hebdomadaire.",
+          "Environ 95 connexions sur 100 sont dans l’état « idle in transaction ».",
+          "La CPU atteint 90 % pendant l’incident.",
+          "L’API dépend directement de la même instance PostgreSQL et aucun PgBouncer n’est présent."
+        ],
+        "actions_recommandees": [
+          "Identifier les sessions « idle in transaction » : application ou job propriétaire, durée, requête et transaction concernée ; terminer prudemment les transactions anormalement anciennes si nécessaire.",
+          "Analyser le plan et les métriques du job de rapport : durée, scans, verrous, nombre de lignes traitées et requêtes les plus consommatrices ; décaler ou réduire sa charge pendant les heures ouvrées.",
+          "Corriger la gestion transactionnelle du code du job et de l’API : commit/rollback explicite, fermeture systématique des curseurs et connexions, et définition d’un idle_in_transaction_session_timeout adapté.",
+          "Mettre en place un pool de connexions, idéalement PgBouncer, et vérifier que les tailles de pools API et rapport restent compatibles avec max_connections.",
+          "Rejouer le rapport en préproduction ou sur une réplique, puis vérifier que CPU, nombre de sessions et latence API restent dans les seuils habituels le lundi suivant."
+        ],
+        "hypotheses": [
+          "Le job de rapport utilise la même instance PostgreSQL que l’API et explique principalement la hausse CPU.",
+          "Les sessions « idle in transaction » sont liées au job ou à un défaut de gestion des transactions dans l’application.",
+          "Aucun verrou bloquant ou incident réseau indépendant n’est la cause dominante ; ces éléments ne sont pas fournis.",
+          "Le rapport n’est pas déjà exécuté sur une réplique dédiée."
+        ],
+        "confiance": 0.92
+      }
+    },
+    {
+      "modele": "anthropic/claude-haiku-5.5",
+      "ok": true,
+      "erreur": null,
+      "duree_s": 7.78,
+      "tokens_entree": 1602,
+      "tokens_sortie": 1583,
+      "reponse": {
+        "reponse": "Le lundi entre 8 h et 10 h, le job de rapport hebdomadaire (lancé à 7 h 45) sature PostgreSQL : il ouvre de nombreuses connexions, dont beaucoup restent 'idle in transaction', ce qui approche max_connections (95/100) et monopolise le CPU (90 %). L'API attend alors connexions et ressources, d'où le passage de 120 ms à ~4 s. La cause la plus probable est un problème de configuration/gestion des transactions et des connexions côté job de rapport (et de pool côté API) plutôt qu'un défaut réseau.",
+        "categorie_cause": "base_de_donnees",
+        "gravite": "elevee",
+        "raisonnement": "1) La dégradation est limitée à une plage horaire fixe du lundi, donc liée à un événement planifié plutôt qu'à la charge générale. 2) Le job de rapport démarre à 7 h 45, juste avant la plage concernée. 3) pg_stat_activity montre ~95 connexions sur 100 dont beaucoup 'idle in transaction' : des transactions ouvertes sans commit/rollback retiennent connexions et verrous/snapshots. 4) Le CPU à 90 % indique une contention de ressources (requêtes lourdes du rapport, et/ou surcharge due aux connexions). 5) Sans pgbouncer, chaque process FastAPI ouvre directement ses connexions ; quand le plafond est atteint, les nouvelles requêtes attendent un slot ou échouent, ce qui explique la latence de plusieurs secondes. 6) Le retour à la normale hors plage et la corrélation temporelle pointent vers le rapport comme déclencheur.",
+        "points_cles": [
+          "Dégradation uniquement le lundi de 8 h à 10 h, en lien avec le job planifié à 7 h 45.",
+          "Nombreuses sessions 'idle in transaction' dans pg_stat_activity.",
+          "~95 connexions sur max_connections=100 : proche de la saturation.",
+          "CPU à 90 % pendant la plage concernée sur une instance de 4 vCPU.",
+          "Pas de pgbouncer : chaque processus de l'API consomme directement des connexions."
+        ],
+        "actions_recommandees": [
+          "Vérifier immédiatement dans pg_stat_activity (state, query_start, xact_start, application_name, client_addr) quelles sessions 'idle in transaction' appartiennent au job de rapport ou à l'API, et depuis quand.",
+          "Corriger le code du job de rapport (et l'API si besoin) : committer/rollback systématique, utiliser 'with' / autocommit en lecture, et configurer idle_in_transaction_session_timeout (ex. 60 s) pour libérer les sessions bloquées.",
+          "Limiter les connexions du job de rapport (pool dédié de petite taille, ou rôle avec statement_timeout / connection limit via ALTER ROLE ... CONNECTION LIMIT) pour préserver des slots à l'API.",
+          "Déplacer le job de rapport vers une réplica en lecture seule ou hors de la plage 8 h-10 h, et analyser son plan d'exécution (EXPLAIN ANALYZE) pour réduire le coût CPU.",
+          "Mettre en place pgbouncer (mode transaction) ou un pool SQLAlchemy borné côté FastAPI, et surveiller connexions actives, attentes de verrous (pg_locks) et CPU pendant le prochain lundi."
+        ],
+        "hypotheses": [
+          "Le job de rapport est bien le processus qui ouvre les sessions 'idle in transaction' : à confirmer via application_name ou client_addr.",
+          "Le CPU élevé provient des requêtes du rapport ; à vérifier avec pg_stat_statements ou les plans d'exécution.",
+          "Une autre tâche planifiée le lundi (sauvegarde, réindexation, ETL) pourrait aussi contribuer.",
+          "Une contention de verrous (pg_locks) pourrait aggraver la latence, non vérifiée dans les éléments fournis.",
+          "Un problème réseau est peu probable car la dégradation est corrélée à la charge base et à la plage horaire."
+        ],
+        "confiance": 0.7
+      }
+    },
+    {
+      "modele": "google/gemini-3.8-flash",
+      "ok": true,
+      "erreur": null,
+      "duree_s": 20.41,
+      "tokens_entree": 752,
+      "tokens_sortie": 991,
+      "reponse": {
+        "reponse": "La dégradation est causée par une saturation des connexions et des ressources de PostgreSQL, déclenchée par le job de rapport hebdomadaire lancé à 7 h 45 qui génère de nombreuses sessions 'idle in transaction'. L'absence de pooler de connexions et le cumul avec le pic de charge du lundi matin provoquent une forte contention CPU et une pénurie de connexions pour l'API.",
+        "categorie_cause": "base_de_donnees",
+        "gravite": "elevee",
+        "raisonnement": "Le job hebdomadaire démarré à 7 h 45 monopolise les ressources et semble laisser de multiples transactions ouvertes ('idle in transaction'). Sans PgBouncer, le pool de connexions s'approche de la limite maximale (95/100). Lorsque le trafic normal arrive entre 8 h et 10 h, l'instance PostgreSQL (4 vCPU) subit une contention sévère (CPU à 90 %, blocages potentiels et attente de connexions libres), ce qui fait exploser les temps de réponse de l'API FastAPI.",
+        "points_cles": [
+          "Nombreuses sessions 'idle in transaction' et quasi-saturation des connexions (95/100).",
+          "CPU de la base saturé à 90 % sur une instance modeste (4 vCPU) sans pooler de connexions.",
+          "Le job hebdomadaire démarre à 7 h 45, précédant directement la dégradation de 8 h à 10 h.",
+          "Temps de réponse de l'API dégradé d'un facteur 30 (120 ms à 4 s)."
+        ],
+        "actions_recommandees": [
+          "Identifier et corriger les requêtes/transactions non fermées générant l'état 'idle in transaction' (particulièrement dans le script du job de rapport).",
+          "Décaler l'exécution du job de rapport hebdomadaire en dehors des heures ouvrées (ex. dimanche nuit).",
+          "Installer et configurer un pooler de connexions tel que PgBouncer (mode transaction).",
+          "Configurer 'idle_in_transaction_session_timeout' dans PostgreSQL pour tuer automatiquement les sessions bloquantes."
+        ],
+        "hypotheses": [
+          "Le job de rapport lancé à 7 h 45 effectue des requêtes lourdes ou ouvre des transactions sans les fermer correctement (idle in transaction).",
+          "L'arrivée du trafic utilisateurs dès 8 h sur une base déjà saturée en connexions et CPU provoque une contention massive (locks, attente de slots de connexion)."
+        ],
+        "confiance": 0.95
+      }
+    }
+  ],
+  "analyse": {
+    "modeles_valides": [
+      "openai/gpt-5.6-luna",
+      "anthropic/claude-haiku-5.5",
+      "google/gemini-3.8-flash"
+    ],
+    "modeles_en_echec": {},
+    "repartition_categories": {
+      "base_de_donnees": [
+        "openai/gpt-5.6-luna",
+        "anthropic/claude-haiku-5.5",
+        "google/gemini-3.8-flash"
+      ]
+    },
+    "categorie_majoritaire": "base_de_donnees",
+    "accord_categorie": 1.0,
+    "gravites": {
+      "openai/gpt-5.6-luna": "elevee",
+      "anthropic/claude-haiku-5.5": "elevee",
+      "google/gemini-3.8-flash": "elevee"
+    },
+    "accord_gravite": 1.0,
+    "accord_contenu": 0.267,
+    "score_consensus": 0.78,
+    "niveau": "élevée",
+    "confiance_declaree_moyenne": 0.857,
+    "convergences": [
+      {
+        "textes": {
+          "openai/gpt-5.6-luna": "Environ 95 connexions sur 100 sont dans l’état « idle in transaction ».",
+          "google/gemini-3.8-flash": "Nombreuses sessions 'idle in transaction' et quasi-saturation des connexions (95/100)."
+        }
+      },
+      {
+        "textes": {
+          "openai/gpt-5.6-luna": "La CPU atteint 90 % pendant l’incident.",
+          "anthropic/claude-haiku-5.5": "CPU à 90 % pendant la plage concernée sur une instance de 4 vCPU.",
+          "google/gemini-3.8-flash": "CPU de la base saturé à 90 % sur une instance modeste (4 vCPU) sans pooler de connexions."
+        }
+      }
+    ],
+    "actions_convergentes": [
+      {
+        "textes": {
+          "openai/gpt-5.6-luna": "Corriger la gestion transactionnelle du code du job et de l’API : commit/rollback explicite, fermeture systématique des curseurs et connexions, et définition d’un idle_in_transaction_session_timeout adapté.",
+          "anthropic/claude-haiku-5.5": "Corriger le code du job de rapport (et l'API si besoin) : committer/rollback systématique, utiliser 'with' / autocommit en lecture, et configurer idle_in_transaction_session_timeout (ex. 60 s) pour libérer les sessions bloquées."
+        }
+      }
+    ],
+    "divergences": [
+      [
+        "openai/gpt-5.6-luna",
+        "Le ralentissement survient uniquement pendant la fenêtre suivant le lancement du rapport hebdomadaire."
+      ],
+      [
+        "openai/gpt-5.6-luna",
+        "L’API dépend directement de la même instance PostgreSQL et aucun PgBouncer n’est présent."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "Dégradation uniquement le lundi de 8 h à 10 h, en lien avec le job planifié à 7 h 45."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "Nombreuses sessions 'idle in transaction' dans pg_stat_activity."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "~95 connexions sur max_connections=100 : proche de la saturation."
+      ],
+      [
+        "anthropic/claude-haiku-5.5",
+        "Pas de pgbouncer : chaque processus de l'API consomme directement des connexions."
+      ],
+      [
+        "google/gemini-3.8-flash",
+        "Le job hebdomadaire démarre à 7 h 45, précédant directement la dégradation de 8 h à 10 h."
+      ],
+      [
+        "google/gemini-3.8-flash",
+        "Temps de réponse de l'API dégradé d'un facteur 30 (120 ms à 4 s)."
+      ]
+    ],
+    "contradictions": [],
+    "diagnostic_retenu": [
+      "openai/gpt-5.6-luna",
+      "La cause la plus probable est le job de rapport hebdomadaire, qui consomme fortement PostgreSQL le lundi matin et laisse de nombreuses transactions ouvertes. Ces sessions occupent presque tout le pool de connexions et la CPU atteint 90 %, ce qui provoque à la fois de l’attente côté API et une forte dégradation des requêtes."
+    ],
+    "alertes": []
+  },
+  "juge": {
+    "modele": "anthropic/claude-sonnet-5.5",
+    "lettres": {
+      "A": "openai/gpt-5.6-luna",
+      "B": "anthropic/claude-haiku-5.5",
+      "C": "google/gemini-3.8-flash"
+    },
+    "erreur": null,
+    "duree_s": 24.5,
+    "accord_contenu": 0.892,
+    "score": 0.967,
+    "niveau": "élevée",
+    "verdict": {
+      "groupes_liste_1": [
+        {
+          "idee": "La dégradation se limite à la plage du lundi matin et suit le lancement du job de rapport hebdomadaire à 7 h 45.",
+          "elements": [
+            "A1",
+            "B1",
+            "C3"
+          ]
+        },
+        {
+          "idee": "Nombreuses sessions 'idle in transaction' et connexions proches de la saturation (~95/100).",
+          "elements": [
+            "A2",
+            "B2",
+            "B3",
+            "C1"
+          ]
+        },
+        {
+          "idee": "Le CPU de l'instance PostgreSQL est à 90 % pendant la plage concernée.",
+          "elements": [
+            "A3",
+            "B4",
+            "C2"
+          ]
+        },
+        {
+          "idee": "Sans PgBouncer, l'API consomme directement les connexions de la même instance PostgreSQL.",
+          "elements": [
+            "A4",
+            "B5"
+          ]
+        },
+        {
+          "idee": "Le temps de réponse de l'API est multiplié par environ 30 (120 ms à 4 s).",
+          "elements": [
+            "C4"
+          ]
+        }
+      ],
+      "groupes_liste_2": [
+        {
+          "idee": "Identifier les sessions 'idle in transaction' (propriétaire, ancienneté, requête) dans pg_stat_activity.",
+          "elements": [
+            "A1",
+            "B1"
+          ]
+        },
+        {
+          "idee": "Corriger la gestion transactionnelle (commit/rollback explicite) et configurer idle_in_transaction_session_timeout.",
+          "elements": [
+            "A3",
+            "B2",
+            "C1",
+            "C4"
+          ]
+        },
+        {
+          "idee": "Décaler le job de rapport hors des heures ouvrées ou le déplacer vers une réplique, et analyser/réduire sa charge.",
+          "elements": [
+            "A2",
+            "B4",
+            "C2"
+          ]
+        },
+        {
+          "idee": "Mettre en place un pooler de connexions (PgBouncer ou pool borné) compatible avec max_connections.",
+          "elements": [
+            "A4",
+            "B5",
+            "C3"
+          ]
+        },
+        {
+          "idee": "Limiter les connexions du job de rapport (pool dédié, CONNECTION LIMIT, statement_timeout) pour préserver des slots à l'API.",
+          "elements": [
+            "B3"
+          ]
+        },
+        {
+          "idee": "Rejouer le rapport en préproduction ou sur une réplique, puis vérifier CPU, sessions et latence le lundi suivant.",
+          "elements": [
+            "A5"
+          ]
+        }
+      ],
+      "accord_sur_le_fond": true,
+      "explication_fond": "Les trois réponses concluent que le job de rapport du lundi à 7 h 45 sature PostgreSQL (connexions occupées par des sessions 'idle in transaction', CPU à 90 %, absence de pooler) et dégrade l'API. Elles diffèrent seulement par le détail des actions.",
+      "contradictions": [],
+      "erreurs_contexte": [
+        {
+          "reponse": "A",
+          "citation": "Environ 95 connexions sur 100 sont « idle in transaction »",
+          "explication": "Le contexte indique ~95 connexions ouvertes sur max_connections=100, dont de nombreuses sessions 'idle in transaction'. Il ne dit pas que ces 95 connexions sont toutes dans cet état."
+        },
+        {
+          "reponse": "A",
+          "citation": "Ces sessions occupent presque tout le pool de connexions",
+          "explication": "Le contexte précise qu'il n'y a pas de pgbouncer. Il s'agit de connexions directes vers max_connections, et il n'est pas établi que ces sessions appartiennent au job de rapport."
+        },
+        {
+          "reponse": "C",
+          "citation": "le cumul avec le pic de charge du lundi matin",
+          "explication": "Le contexte ne mentionne aucun pic de trafic le lundi matin. Il ne signale que le ralentissement de 8 h à 10 h et le job à 7 h 45. Le trafic utilisateur plus élevé dès 8 h est donc une supposition."
+        },
+        {
+          "reponse": "C",
+          "citation": "déclenchée par le job de rapport hebdomadaire lancé à 7 h 45 qui génère de nombreuses sessions 'idle in transaction'",
+          "explication": "Le contexte ne dit pas que le job crée ces sessions. Il donne seulement la coïncidence horaire. Le lien est présenté comme un fait dans la réponse et seulement nuancé dans les hypothèses."
+        }
+      ],
+      "synthese": "Les trois réponses retiennent la même cause : le job du lundi à 7 h 45 coïncide avec une saturation de PostgreSQL, avec ~95 connexions sur 100, de nombreuses sessions 'idle in transaction', un CPU à 90 % et aucun pooler. Les actions se recoupent largement : diagnostiquer les sessions, corriger les transactions, fixer un timeout, décaler ou délester le job, ajouter un pooler. Chacune apporte un élément propre : A propose de valider le correctif en préproduction ou sur une réplique, B de limiter les connexions du job, C de planifier le rapport le dimanche soir. Rien ne prouve cependant que le job ouvre les sessions 'idle in transaction' ni qu'il consomme le CPU. Il pourrait s'agir de l'application elle-même, d'une autre tâche du lundi, de verrous ou d'un pic de trafic, ce que B reconnaît dans ses hypothèses. Il faut donc confirmer avec application_name/client_addr, pg_stat_statements et pg_locks avant de conclure. Les réponses A et C contiennent de petites extrapolations par rapport au contexte, sans remettre en cause la conclusion générale."
+    }
+  }
+}

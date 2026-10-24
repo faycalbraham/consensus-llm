@@ -1,0 +1,17 @@
+== /var/log/nginx/error.log ==
+2026/10/21 10:14:07 [error] 2231#2231: *88412 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 81.250.12.4, server: shop.example.com, request: "GET /search?q=chaussures HTTP/1.1", upstream: "http://10.0.2.14:8000/search"
+2026/10/21 10:16:52 [error] 2231#2231: *88977 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 90.12.77.31, server: shop.example.com, request: "GET /search?q=veste HTTP/1.1", upstream: "http://10.0.2.14:8000/search"
+
+== application (search-api) ==
+2026-10-21 10:13:37,512 INFO  elasticsearch: GET http://es-cluster:9200/products/_search [status:200 request:0.042s]
+2026-10-21 10:13:37,604 WARNING elasticsearch: GET http://es-cluster:9200/products/_search [status:N/A request:30.001s] ConnectionTimeout caused by - ReadTimeoutError(HTTPConnectionPool(host='es-cluster', port=9200): Read timed out. (read timeout=30))
+2026-10-21 10:13:38,019 INFO  elasticsearch: GET http://es-cluster:9200/products/_search [status:200 request:0.038s]
+
+== es-node-2 ==
+[2026-10-21T10:13:38,115][WARN ][o.e.m.j.JvmGcMonitorService] [es-node-2] [gc][old][12844][97] duration [28.7s], collections [1]/[29.1s], total [28.7s]/[41.2m], memory [3.9gb]->[3.8gb]/[4gb]
+[2026-10-21T10:13:38,116][WARN ][o.e.m.j.JvmGcMonitorService] [es-node-2] [gc][12844] overhead, spent [28.7s] collecting in the last [29.1s]
+[2026-10-21T10:13:40,002][INFO ][o.e.i.b.HierarchyCircuitBreakerService] [es-node-2] attempting to trigger G1GC due to high heap usage [4089446400]
+
+== Notes de l'équipe ==
+Cluster Elasticsearch : 3 nœuds, 4 Go de heap chacun.
+L'index products est passé de 2 à 9 millions de documents depuis lundi (import du catalogue fournisseur).
