@@ -28,7 +28,7 @@ from rich.table import Table
 from consensus import corrections, observabilite
 from consensus.accord import analyser
 from consensus.domaines import DOMAINES, TECHNIQUE
-from consensus.juge import MODELE_JUGE_PAR_DEFAUT, juger
+from consensus.juge import MODELE_JUGE_PAR_DEFAUT, juger, lecons_passees
 from consensus.llm import MODELES_PAR_DEFAUT, ResultatModele, interroger_modeles
 from consensus.rapport import afficher, afficher_juge, sauvegarder
 from consensus.schema import ReponseModele
@@ -143,6 +143,8 @@ def main() -> None:
     p.add_argument("--juger", type=Path, metavar="TRACE",
                    help="Juge une trace existante (runs/*.json) sans rappeler les modèles.")
     p.add_argument("--modele-juge", default=MODELE_JUGE_PAR_DEFAUT, help="Modèle OpenRouter du juge.")
+    p.add_argument("--sans-memoire", action="store_true",
+                   help="Le juge ne reçoit pas les leçons des corrections humaines (pour comparer).")
     p.add_argument("--corriger", type=Path, metavar="TRACE",
                    help="Human-in-the-loop : corriger le résultat d'une trace existante.")
     p.add_argument("--bilan", action="store_true", help="Bilan des corrections humaines enregistrées.")
@@ -196,8 +198,12 @@ def main() -> None:
 
         rj = None
         if avec_juge:
+            # Boucle humaine fermée : les corrections passées deviennent des leçons pour le juge.
+            lecons = [] if args.sans_memoire else lecons_passees(corrections.lire(args.corrections), domaine)
+            if lecons:
+                console.print(f"[dim]Le juge reçoit {len(lecons)} leçon(s) tirée(s) des corrections humaines.[/]")
             with console.status(f"Le juge {args.modele_juge} relit les réponses..."):
-                rj = asyncio.run(juger(question, contexte, resultats, analyse, domaine, args.modele_juge))
+                rj = asyncio.run(juger(question, contexte, resultats, analyse, domaine, args.modele_juge, lecons))
             afficher_juge(console, rj, analyse, domaine)
 
         tid = observabilite.trace_id() if span is not None else None

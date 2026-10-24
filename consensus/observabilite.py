@@ -75,6 +75,7 @@ def envoyer_resultats(span, tid: str | None, analyse, rj=None) -> None:
         _score(tid, "juge_accord_sur_le_fond", 1 if v.accord_sur_le_fond else 0, "BOOLEAN", v.explication_fond)
         _score(tid, "juge_contradictions", len(v.contradictions))
         _score(tid, "juge_erreurs_contexte", len(v.erreurs_contexte))
+        _score(tid, "juge_lecons_recues", len(rj.lecons))
 
 
 def envoyer_correction(tid: str | None, c) -> bool:

@@ -60,8 +60,12 @@ quelle était la bonne case et si le juge s'est trompé. Chaque correction est a
 `corrections.jsonl`, sans rien effacer. `--bilan` indique ensuite si la confiance annoncée
 correspondait à des réponses justes, avec et sans juge.
 
-La boucle **mesure** aujourd'hui. La faire **apprendre** est la suite prévue : corrections données
-en exemples au juge, calibrage des seuils, révision des catégories qui créent de la confusion.
+La boucle est **fermée** pour le juge : avant chaque jugement, les corrections passées du même
+domaine (erreurs qu'il a signalées à tort, oublis relevés par un humain, mauvaise case) lui sont
+données comme leçons dans ses consignes. `--sans-memoire` désactive ces leçons pour comparer.
+Exemple : sur l'exemple 2, le juge ne signale plus l'erreur qu'un humain avait jugée injustifiée,
+mais continue de signaler la vraie erreur de GPT. Suite prévue : calibrer les seuils et revoir les
+catégories qui créent de la confusion, une fois assez de corrections accumulées.
 
 ### Domaines
 
@@ -93,7 +97,8 @@ python main.py --domaine sante --exemple 1               # domaine santé
 python main.py --juger exemples/postgresql-lundi-avec-juge.json   # juger une trace existante
 python main.py --corriger runs/run-XXXX.json             # corriger un résultat
 python main.py --bilan                                   # bilan des corrections
-pytest                                                   # 17 tests, sans réseau
+python main.py --juger exemples/postgresql-lundi-avec-juge.json --sans-memoire   # juge sans les leçons
+pytest                                                   # 18 tests, sans réseau
 ```
 
 Options utiles : `--modeles` (identifiants OpenRouter des modèles interrogés), `--modele-juge`.
@@ -122,7 +127,7 @@ Le dossier [exemples/](exemples/) contient trois exécutions réelles, lisibles 
 | `consensus/schema.py` | schémas Pydantic imposés aux modèles |
 | `consensus/llm.py` | appels parallèles via OpenRouter et Pydantic AI |
 | `consensus/accord.py` | score par mots et synthèse |
-| `consensus/juge.py` | juge LLM et score avec le juge |
+| `consensus/juge.py` | juge LLM, score avec le juge, leçons tirées des corrections |
 | `consensus/corrections.py` | boucle humaine : corrections et bilan |
 | `consensus/observabilite.py` | traces Langfuse |
 | `consensus/rapport.py` | affichage et traces JSON |

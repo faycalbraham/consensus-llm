@@ -55,3 +55,26 @@ def test_charger_trace_relit_une_ancienne_trace_sans_domaine(tmp_path):
     domaine, question, contexte, resultats = charger_trace(chemin)
     assert domaine is TECHNIQUE and question == "Q ?"
     assert resultats[0].ok and not resultats[1].ok
+
+
+def test_lecons_passees_filtrees_par_domaine_et_injectees_dans_les_consignes():
+    from consensus import corrections
+    from consensus.domaines import SANTE
+    from consensus.juge import INSTRUCTIONS_JUGE, instructions_avec_lecons, lecons_passees
+    from tests.test_corrections import trace
+
+    liste = [
+        corrections.depuis_trace(trace(), "t1", "juste", erreurs_juge_a_tort=["pas de timeout"]),
+        corrections.depuis_trace(trace(), "t2", "partielle", bon_choix="ressources_systeme",
+                                 manque="contradiction sur le miel"),
+        corrections.depuis_trace(trace(), "t3", "juste"),  # rien à apprendre
+    ]
+    lecons = lecons_passees(liste, TECHNIQUE)
+    assert len(lecons) == 3
+    assert any("pas de timeout" in x for x in lecons)
+    assert any("contradiction sur le miel" in x for x in lecons)
+    assert any("ressources_systeme" in x for x in lecons)
+    assert lecons_passees(liste, SANTE) == []           # autre domaine : aucune leçon
+    assert lecons_passees(liste, TECHNIQUE, limite=1) and len(lecons_passees(liste, TECHNIQUE, limite=1)) == 1
+    assert instructions_avec_lecons([]) == INSTRUCTIONS_JUGE
+    assert "pas de timeout" in instructions_avec_lecons(lecons)

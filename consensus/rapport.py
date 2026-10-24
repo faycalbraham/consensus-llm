@@ -93,6 +93,8 @@ def afficher_juge(console: Console, rj: ResultatJuge, a: Analyse, d: Domaine = T
                    f"   [dim]score par mots : {a.score_consensus:.0%}[/]",
                    f"  contenu : {rj.accord_contenu:.0%} avec le juge, contre {a.accord_contenu:.0%} par mots "
                    f"[dim]({d.titre_categorie.lower()} et gravité inchangées)[/]", ""]
+    if rj.lecons:
+        lignes += [f"[dim]Mémoire : {len(rj.lecons)} leçon(s) tirée(s) des corrections humaines passées.[/]", ""]
     fond = "[green]oui[/]" if v.accord_sur_le_fond else "[red]non[/]"
     lignes += [f"[bold]Accord sur le fond :[/] {fond} — {e(v.explication_fond)}", ""]
 
@@ -143,7 +145,7 @@ def sauvegarder(dossier: Path, question: str, contexte: str | None,
     }
     if rj is not None:
         donnees["juge"] = {
-            "modele": rj.modele_juge, "lettres": rj.lettres, "erreur": rj.erreur,
+            "modele": rj.modele_juge, "lettres": rj.lettres, "erreur": rj.erreur, "lecons": rj.lecons,
             "duree_s": round(rj.duree_s, 2), "accord_contenu": rj.accord_contenu,
             "score": rj.score, "niveau": rj.niveau,
             "verdict": rj.verdict.model_dump(mode="json") if rj.ok else None,

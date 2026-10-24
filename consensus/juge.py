@@ -76,6 +76,38 @@ N'invente ni accord ni désaccord. Réponds en français.
 """
 
 
+def lecons_passees(corrections: list, d: Domaine, limite: int = 5) -> list[str]:
+    """Boucle humaine fermée : transforme les corrections passées en leçons pour le juge.
+
+    On retient, pour le même domaine et des plus récentes aux plus anciennes, les erreurs que le
+    juge a signalées à tort, ce qu'un humain a vu et que le moteur a manqué, et les cas où la bonne
+    case n'était pas celle des modèles.
+    """
+    lecons = []
+    for c in reversed(corrections):
+        if c.domaine != d.nom:
+            continue
+        sujet = c.question if len(c.question) <= 90 else c.question[:89] + "…"
+        for citation in c.erreurs_juge_a_tort:
+            lecons.append(f"Sur « {sujet} », tu avais signalé comme erreur « {citation} » : "
+                          "un humain a jugé que ce n'en était pas une (supposition raisonnable).")
+        if c.manque:
+            lecons.append(f"Sur « {sujet} », un humain a relevé ce que tu n'avais pas vu : « {c.manque} ».")
+        if c.choix_moteur and c.bon_choix and c.choix_moteur != c.bon_choix:
+            lecons.append(f"Sur « {sujet} », les modèles avaient choisi « {c.choix_moteur} » "
+                          f"pour {d.libelle_categorie}, mais un humain a retenu « {c.bon_choix} ».")
+        if len(lecons) >= limite:
+            break
+    return lecons[:limite]
+
+
+def instructions_avec_lecons(lecons: list[str]) -> str:
+    if not lecons:
+        return INSTRUCTIONS_JUGE
+    return (INSTRUCTIONS_JUGE + "\nLeçons tirées des corrections humaines de tes jugements passés. "
+            "Tiens-en compte sans en exagérer la portée :\n" + "\n".join(f"- {x}" for x in lecons) + "\n")
+
+
 def _champ(rep, nom):
     valeur = getattr(rep, nom)
     return valeur.value if hasattr(valeur, "value") else valeur
@@ -128,6 +160,7 @@ class ResultatJuge:
     score: float | None = None
     niveau: str = "indéterminée"
     duree_s: float = 0.0
+    lecons: list[str] = field(default_factory=list)  # corrections humaines passées données au juge
 
     @property
     def ok(self) -> bool:
@@ -147,15 +180,17 @@ def calculer_score(verdict: VerdictJuge, valides: dict[str, object], a: Analyse,
 
 
 async def juger(question: str, contexte: str | None, resultats: list[ResultatModele], a: Analyse,
-                d: Domaine, modele_juge: str = MODELE_JUGE_PAR_DEFAUT) -> ResultatJuge:
+                d: Domaine, modele_juge: str = MODELE_JUGE_PAR_DEFAUT,
+                lecons: list[str] | None = None) -> ResultatJuge:
     valides = {r.modele: r.reponse for r in resultats if r.ok}
-    rj = ResultatJuge(modele_juge=modele_juge, lettres=dict(zip(ascii_uppercase, valides)))
+    rj = ResultatJuge(modele_juge=modele_juge, lettres=dict(zip(ascii_uppercase, valides)), lecons=lecons or [])
     if len(valides) < 2:
         rj.erreur = "moins de deux réponses valides : rien à juger"
         return rj
     # Sortie JSON native (json_schema) : certains fournisseurs refusent le mode « outil imposé » par défaut.
     agent = Agent(OpenAIChatModel(modele_juge, provider=OpenAIProvider(openai_client=_client())),
-                  output_type=NativeOutput(VerdictJuge), instructions=INSTRUCTIONS_JUGE, retries=2)
+                  output_type=NativeOutput(VerdictJuge), instructions=instructions_avec_lecons(rj.lecons),
+                  retries=2)
     debut = time.perf_counter()
     try:
         res = await agent.run(construire_prompt(question, contexte, valides, d))
